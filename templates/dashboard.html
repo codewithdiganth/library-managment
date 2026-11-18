@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>Overview | Northstar Library</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/features.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/circulation.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/smart.css') }}">
+</head>
+<body class="app-page" data-role="{{ user.role }}" data-user-id="{{ user.id }}">
+  <aside class="sidebar">
+    <a class="brand" href="/dashboard"><span class="brand-mark">N</span><span>northstar<span class="brand-sub">LIBRARY</span></span></a>
+    <div class="sidebar-label">WORKSPACE</div>
+    <nav class="side-nav" aria-label="Main navigation">
+      <a class="nav-link active" href="/dashboard"><span class="nav-icon">◫</span>Overview</a>
+      <a class="nav-link" href="#catalog"><span class="nav-icon">▤</span>Discover books</a>
+      {% if user.role == 'student' %}<a class="nav-link" href="#my-books"><span class="nav-icon">▣</span>My books</a>{% endif %}
+      {% if user.role in ['staff', 'admin'] %}<a class="nav-link" href="#circulation"><span class="nav-icon">↔</span>Circulation</a><a class="nav-link" href="#members"><span class="nav-icon">♧</span>Members</a>{% endif %}
+      {% if user.role == 'admin' %}<a class="nav-link" href="#analytics"><span class="nav-icon">▥</span>Analytics</a>{% endif %}
+      <div class="sidebar-label sidebar-label-spaced">SMART LIBRARY</div>
+      <a class="nav-link" href="#study"><span class="nav-icon">⌂</span>Study spaces</a>
+      <a class="nav-link" href="#queue"><span class="nav-icon">≋</span>Waiting queue</a>
+      <a class="nav-link" href="#locator"><span class="nav-icon">⌖</span>Book locator</a>
+      <a class="nav-link" href="#scanner"><span class="nav-icon">▦</span>Smart scanner</a>
+      <a class="nav-link" href="#assistant"><span class="nav-icon">✳</span>AI assistant</a>
+      <a class="nav-link" href="#audio"><span class="nav-icon">♫</span>Listen & learn</a>
+    </nav>
+    <div class="sidebar-bottom"><div class="help-note"><span class="help-icon">?</span><span>Need a hand?<small>Visit the library desk</small></span></div></div>
+  </aside>
+  <main class="main-area">
+    <header class="topbar">
+      <div class="breadcrumb" id="topbar-breadcrumb">Northstar <span>/</span> <b id="breadcrumb-current">Overview</b></div>
+      <div class="topbar-actions">
+        <div class="notification-wrap" style="position:relative;">
+          <button class="icon-button" id="notification-button" type="button" aria-label="Notifications" title="Notifications">
+            ♧<b class="notification-dot" id="notification-badge" hidden></b>
+          </button>
+          <div class="notification-dropdown" id="notification-dropdown" hidden>
+            <div class="notification-dropdown-header">
+              <span><b>Notifications</b></span>
+              <button class="text-button" id="mark-all-notifications-read" type="button">Mark all read</button>
+            </div>
+            <div class="notification-dropdown-list" id="notification-dropdown-list">
+              <p class="muted" style="padding:12px;font-size:11px;">Loading notifications...</p>
+            </div>
+          </div>
+        </div>
+        <span class="topbar-divider"></span>
+        <div class="user-chip">
+          <span class="avatar">{{ user.name[:1] }}</span>
+          <span class="user-name">{{ user.name }}<small>{{ user.role|title }}</small></span>
+        </div>
+        <form method="post" action="{{ url_for('logout') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="text-button" type="submit">Sign out</button>
+        </form>
+      </div>
+    </header>
+    <div class="page-content">
+      <div id="feature-panel" class="feature-panel" hidden></div>
+      <div class="welcome-row">
+        <div>
+          <span class="eyebrow">{{ user.role|upper }} WORKSPACE</span>
+          <h1>Good {{ 'morning' }}, {{ user.name.split(' ')[0] }}.</h1>
+          <p class="muted">Your library, one thoughtful step ahead.</p>
+        </div>
+        <span class="date-chip">{{ user.department or 'Northstar University' }}</span>
+      </div>
+      <section class="metric-grid" aria-label="Library summary">
+        <article class="metric-card">
+          <span class="metric-label">{{ 'Books checked out' if user.role == 'student' else 'Active loans' }}</span>
+          <strong>{{ metrics.active_loans }}</strong>
+          <span class="metric-foot">Across the library today</span>
+        </article>
+        <article class="metric-card">
+          <span class="metric-label">{{ 'Overdue books' if user.role == 'student' else 'Overdue returns' }}</span>
+          <strong>{{ metrics.overdue }}</strong>
+          <span class="metric-foot">{{ 'Keep your account in good standing' if user.role == 'student' else 'Need follow-up' }}</span>
+        </article>
+        <article class="metric-card metric-accent">
+          <span class="metric-label">{{ 'Outstanding fines' if user.role == 'student' else 'Active members' }}</span>
+          <strong>{{ ('Rs. %.2f'|format(metrics.fine_balance)) if user.role == 'student' else metrics.fine_balance }}</strong>
+          <span class="metric-foot">{{ 'Current account balance (Rs. 5/day)' if user.role == 'student' else 'Registered student accounts' }}</span>
+        </article>
+      </section>
+      <section class="welcome-banner">
+        <div>
+          <span class="eyebrow">YOUR CAMPUS LIBRARY</span>
+          <h2>Make room for a new perspective.</h2>
+          <p>Explore a curated collection of ideas, stories and practical knowledge.</p>
+          <a class="button button-white" href="#catalog">Explore the collection <span aria-hidden="true">→</span></a>
+        </div>
+        <div class="banner-books" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      </section>
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">GET STARTED</span>
+          <h2>What would you like to do?</h2>
+        </div>
+      </div>
+      <section class="quick-grid">
+        <a href="#catalog" class="quick-card">
+          <span class="quick-icon blue">⌕</span>
+          <span><b>Find a book</b><small>Search the full catalog</small></span>
+          <span class="quick-arrow">↗</span>
+        </a>
+        <a href="#study" class="quick-card">
+          <span class="quick-icon green">⌂</span>
+          <span><b>Book a study seat</b><small>Find your focus space</small></span>
+          <span class="quick-arrow">↗</span>
+        </a>
+        <a href="#assistant" class="quick-card">
+          <span class="quick-icon coral">✳</span>
+          <span><b>Ask the assistant</b><small>Get help from Northstar</small></span>
+          <span class="quick-arrow">↗</span>
+        </a>
+      </section>
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">FEATURED COLLECTION</span>
+          <h2>Worth a closer look</h2>
+        </div>
+        <a class="inline-link" href="#catalog">View catalog <span aria-hidden="true">→</span></a>
+      </div>
+      <section class="featured-books">
+        <a href="#catalog" class="book-placeholder" style="cursor:pointer;text-decoration:none;">
+          <div class="cover cover-olive">
+            <small>Yuval Noah Harari</small>
+            <b>SAPIENS</b>
+            <span>A BRIEF HISTORY OF HUMANKIND</span>
+          </div>
+          <div><b>Sapiens</b><small>Yuval Noah Harari · History</small></div>
+        </a>
+        <a href="#catalog" class="book-placeholder" style="cursor:pointer;text-decoration:none;">
+          <div class="cover cover-blue">
+            <small>James Clear</small>
+            <b>ATOMIC<br>HABITS</b>
+            <span>TINY CHANGES, REMARKABLE RESULTS</span>
+          </div>
+          <div><b>Atomic Habits</b><small>James Clear · Personal Growth</small></div>
+        </a>
+        <a href="#catalog" class="book-placeholder" style="cursor:pointer;text-decoration:none;">
+          <div class="cover cover-rust">
+            <small>Matt Haig</small>
+            <b>THE MIDNIGHT<br>LIBRARY</b>
+            <span>BETWEEN LIFE AND DEATH THERE IS A LIBRARY</span>
+          </div>
+          <div><b>The Midnight Library</b><small>Matt Haig · Fiction</small></div>
+        </a>
+        <a href="#catalog" class="book-placeholder" style="cursor:pointer;text-decoration:none;">
+          <div class="cover cover-ink">
+            <small>Don Norman</small>
+            <b>THE DESIGN<br>OF EVERYDAY<br>THINGS</b>
+            <span>REVISED AND EXPANDED EDITION</span>
+          </div>
+          <div><b>The Design of Everyday Things</b><small>Don Norman · Design</small></div>
+        </a>
+      </section>
+    </div>
+  </main>
+  <script src="{{ url_for('static', filename='js/chart.umd.min.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+</body>
+</html>
