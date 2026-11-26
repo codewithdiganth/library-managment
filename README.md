@@ -70,6 +70,7 @@ pytest -v
    - Smart search engine supporting typo tolerance (e.g. "Atmoic Habits" -> "Atomic Habits") and multi-token queries.
 3. **Member Management**:
    - Add, edit, and deactivate/reactivate student member accounts.
+   - Store and view student mobile numbers in member profiles.
    - View complete student borrowing and fine payment histories.
 4. **Circulation & QR Codes**:
    - Issue books (7, 14, or 21 day loans) and check in returns.
