@@ -3,6 +3,7 @@ import json
 import re
 import secrets
 import sqlite3
+import csv
 from datetime import date, datetime, timedelta
 from contextlib import closing
 from difflib import SequenceMatcher
@@ -355,7 +356,7 @@ def create_app():
     def list_loans():
         member_id = g.user["id"] if g.user["role"] == "student" else request.args.get("member_id")
         query = """SELECT l.id, l.user_id, u.name AS member_name, u.member_code, l.book_id, b.title, b.author,
-                          l.issued_at, l.due_at, l.returned_at, l.fine, l.fine_paid,
+                      l.issued_at, l.due_at, l.returned_at, l.fine, l.fine_paid, l.renewals,
                           CASE WHEN l.returned_at IS NULL AND l.due_at < date('now')
                                THEN ROUND((julianday(date('now')) - julianday(l.due_at)) * 5.0, 2)
                                ELSE l.fine END AS current_fine
@@ -489,6 +490,70 @@ def create_app():
                 abort(403)
             db.execute("UPDATE loans SET fine_paid = 1 WHERE id = ?", (loan_id,))
         return jsonify(message="Fine marked as paid.", amount=loan["fine"])
+
+    @app.post("/api/loans/<int:loan_id>/renew")
+    @login_required
+    def renew_loan(loan_id):
+        with closing(get_db()) as db, db:
+            loan = db.execute(
+                "SELECT id, user_id, book_id, due_at, renewals FROM loans WHERE id = ? AND returned_at IS NULL",
+                (loan_id,),
+            ).fetchone()
+            if loan is None:
+                return jsonify(error="Active loan not found."), 404
+            if g.user["role"] == "student" and loan["user_id"] != g.user["id"]:
+                abort(403)
+            if loan["renewals"] >= 2:
+                return jsonify(error="This loan has already reached the two-renewal limit."), 409
+            if date.fromisoformat(loan["due_at"]) < date.today():
+                return jsonify(error="Overdue loans must be returned before they can be renewed."), 409
+            queued = db.execute(
+                "SELECT 1 FROM waiting_queue WHERE book_id = ? AND status = 'waiting'",
+                (loan["book_id"],),
+            ).fetchone()
+            if queued:
+                return jsonify(error="This title has a waiting queue, so it cannot be renewed."), 409
+            new_due = date.fromisoformat(loan["due_at"]) + timedelta(days=14)
+            db.execute(
+                "UPDATE loans SET due_at = ?, renewals = renewals + 1 WHERE id = ?",
+                (new_due.isoformat(), loan_id),
+            )
+        return jsonify(message="Loan renewed for 14 more days.", due_at=new_due.isoformat(), renewals=loan["renewals"] + 1)
+
+    @app.get("/api/export/<kind>.csv")
+    @roles_required("staff", "admin")
+    def export_csv(kind):
+        output = BytesIO()
+        text = output if hasattr(output, "write") else None
+        del text
+        from io import TextIOWrapper
+        stream = TextIOWrapper(output, encoding="utf-8", newline="")
+        with closing(get_db()) as db:
+            if kind == "loans":
+                rows = db.execute(
+                    """SELECT l.id, u.name, u.member_code, b.title, b.isbn, l.issued_at, l.due_at,
+                              l.returned_at, l.fine, l.fine_paid, l.renewals
+                       FROM loans l JOIN users u ON u.id = l.user_id JOIN books b ON b.id = l.book_id
+                       ORDER BY l.issued_at DESC"""
+                ).fetchall()
+                writer = csv.writer(stream)
+                writer.writerow(["Loan ID", "Member", "Member Code", "Title", "ISBN", "Issued", "Due", "Returned", "Fine", "Paid", "Renewals"])
+                writer.writerows([tuple(row) for row in rows])
+                filename = "northstar-loans.csv"
+            elif kind == "catalog":
+                rows = db.execute(
+                    "SELECT isbn, title, author, category, total_copies, shelf, rack, floor FROM books ORDER BY title"
+                ).fetchall()
+                writer = csv.writer(stream)
+                writer.writerow(["ISBN", "Title", "Author", "Category", "Copies", "Shelf", "Rack", "Floor"])
+                writer.writerows([tuple(row) for row in rows])
+                filename = "northstar-catalog.csv"
+            else:
+                return jsonify(error="Choose loans or catalog export."), 400
+        stream.flush()
+        stream.detach()
+        output.seek(0)
+        return send_file(output, mimetype="text/csv", as_attachment=True, download_name=filename)
 
     @app.get("/qr/book/<int:book_id>.png")
     @login_required
@@ -950,4 +1015,4 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(debug=os.environ.get("FLASK_DEBUG") == "1")
+    app.run(host="127.0.0.1", port=8080, debug=os.environ.get("FLASK_DEBUG") == "1")

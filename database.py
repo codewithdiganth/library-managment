@@ -59,7 +59,8 @@ def init_db():
                 due_at TEXT NOT NULL,
                 returned_at TEXT,
                 fine REAL NOT NULL DEFAULT 0,
-                fine_paid INTEGER NOT NULL DEFAULT 0
+                fine_paid INTEGER NOT NULL DEFAULT 0,
+                renewals INTEGER NOT NULL DEFAULT 0
             );
             CREATE TABLE IF NOT EXISTS seats (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -108,6 +109,10 @@ def init_db():
             );
             """
         )
+
+        loan_columns = {row["name"] for row in db.execute("PRAGMA table_info(loans)").fetchall()}
+        if "renewals" not in loan_columns:
+            db.execute("ALTER TABLE loans ADD COLUMN renewals INTEGER NOT NULL DEFAULT 0")
 
         seed_env = os.environ.get("SEED_DEMO_DATA")
         seed_demo_accounts = (seed_env is None) or (seed_env.casefold() in {"1", "true", "yes", "on"})

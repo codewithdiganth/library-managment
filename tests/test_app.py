@@ -262,6 +262,38 @@ class AuthenticationTests(unittest.TestCase):
         )
         self.assertEqual(read.status_code, 200)
 
+    def test_student_can_renew_active_loan_twice_but_not_a_third_time(self):
+        self.login("maya@northstar.edu", "student123")
+        token = self.current_csrf_token()
+        db = get_db()
+        loan = db.execute(
+            """SELECT l.id, l.due_at FROM loans l JOIN users u ON u.id = l.user_id
+               WHERE u.email = 'maya@northstar.edu' AND l.returned_at IS NULL
+               ORDER BY l.id LIMIT 1"""
+        ).fetchone()
+        db.close()
+        headers = {"X-CSRF-Token": token}
+        first = self.client.post(f"/api/loans/{loan['id']}/renew", json={}, headers=headers)
+        second = self.client.post(f"/api/loans/{loan['id']}/renew", json={}, headers=headers)
+        third = self.client.post(f"/api/loans/{loan['id']}/renew", json={}, headers=headers)
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(third.status_code, 409)
+        db = get_db()
+        renewed = db.execute(
+            "SELECT due_at, renewals FROM loans WHERE id = ?", (loan["id"],)
+        ).fetchone()
+        db.close()
+        self.assertEqual(renewed["renewals"], 2)
+        self.assertGreater(renewed["due_at"], loan["due_at"])
+
+    def test_staff_can_export_loans_csv(self):
+        self.login("staff@northstar.edu", "staff123")
+        response = self.client.get("/api/export/loans.csv")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, "text/csv")
+        self.assertIn(b"Loan ID", response.data)
+
 
 if __name__ == "__main__":
     unittest.main()
