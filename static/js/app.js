@@ -168,7 +168,7 @@ async function showCatalog() {
 }
 
 function memberDialogMarkup() {
-  return `<dialog class="form-dialog" id="member-dialog"><form id="member-form" method="dialog"><div class="dialog-head"><div><span class="eyebrow">MEMBER PROFILE</span><h2 id="member-dialog-title">Add a student</h2></div><button class="icon-button dialog-close" value="cancel" aria-label="Close">×</button></div><input type="hidden" name="id"><div class="form-grid"><label>Full name<input name="name" required maxlength="120"></label><label>University email<input name="email" required type="email" maxlength="200"></label><label>Department<input name="department" maxlength="100"></label><label id="member-password-field">Password<input name="password" type="password" minlength="8" autocomplete="new-password" placeholder="Min 8 characters"></label><label id="member-active-field" style="display:none;">Status<select name="active"><option value="1">Active</option><option value="0">Inactive</option></select></label></div><div class="dialog-actions"><button class="button button-quiet" type="button" data-close-dialog>Cancel</button><button class="button button-primary" type="submit">Save member</button></div></form></dialog>`;
+  return `<dialog class="form-dialog" id="member-dialog"><form id="member-form" method="dialog"><div class="dialog-head"><div><span class="eyebrow">MEMBER PROFILE</span><h2 id="member-dialog-title">Add a student</h2></div><button class="icon-button dialog-close" value="cancel" aria-label="Close">×</button></div><input type="hidden" name="id"><div class="form-grid"><label>Full name<input name="name" required maxlength="120"></label><label>University email<input name="email" required type="email" maxlength="200"></label><label>Mobile number<input name="mobile_number" type="tel" required maxlength="24" autocomplete="tel" placeholder="+1 555 123 4567"></label><label>Department<input name="department" maxlength="100"></label><label id="member-password-field">Password<input name="password" type="password" minlength="8" autocomplete="new-password" placeholder="Min 8 characters"></label><label id="member-active-field" style="display:none;">Status<select name="active"><option value="1">Active</option><option value="0">Inactive</option></select></label></div><div class="dialog-actions"><button class="button button-quiet" type="button" data-close-dialog>Cancel</button><button class="button button-primary" type="submit">Save member</button></div></form></dialog>`;
 }
 
 async function showMembers() {
@@ -180,7 +180,7 @@ async function showMembers() {
   const load = async () => {
     try {
       const { members } = await api("/api/members");
-      rows.innerHTML = members.map((member) => `<tr><td><div class="member-cell"><span class="avatar">${escapeHtml(member.name.slice(0, 1))}</span><span><b>${escapeHtml(member.name)}</b><small>${escapeHtml(member.email)} · ${escapeHtml(member.member_code || "")}</small></span></div></td><td>${escapeHtml(member.department || "—")}</td><td>${member.active_loans || 0} active <small> · ${member.loans_count || 0} total</small></td><td><span class="status-pill ${member.active ? "status-active" : "status-inactive"}">${member.active ? "Active" : "Inactive"}</span></td><td><button class="table-action" data-member-history="${member.id}">View history</button></td>${userRole === "admin" ? `<td><button class="table-action" data-edit-member="${member.id}">Edit</button> <button class="table-action danger-link" data-remove-member="${member.id}">${member.active ? "Deactivate" : "Activate"}</button></td>` : ""}</tr>`).join("");
+      rows.innerHTML = members.map((member) => `<tr><td><div class="member-cell"><span class="avatar">${escapeHtml(member.name.slice(0, 1))}</span><span><b>${escapeHtml(member.name)}</b><small>${escapeHtml(member.email)} · ${escapeHtml(member.member_code || "")}</small><small>${escapeHtml(member.mobile_number || "Mobile not provided")}</small></span></div></td><td>${escapeHtml(member.department || "—")}</td><td>${member.active_loans || 0} active <small> · ${member.loans_count || 0} total</small></td><td><span class="status-pill ${member.active ? "status-active" : "status-inactive"}">${member.active ? "Active" : "Inactive"}</span></td><td><button class="table-action" data-member-history="${member.id}">View history</button></td>${userRole === "admin" ? `<td><button class="table-action" data-edit-member="${member.id}">Edit</button> <button class="table-action danger-link" data-remove-member="${member.id}">${member.active ? "Deactivate" : "Activate"}</button></td>` : ""}</tr>`).join("");
       rows.dataset.members = JSON.stringify(members);
       if (!members.length) rows.innerHTML = '<tr><td colspan="6">No student accounts found.</td></tr>';
     } catch (error) { notify(error.message, "error"); }
@@ -210,7 +210,7 @@ async function showMembers() {
     if (edit) {
       const member = JSON.parse(rows.dataset.members || "[]").find((item) => item.id === Number(edit.dataset.editMember));
       if (!member) return;
-      for (const key of ["name", "email", "department"]) form.elements[key].value = member[key] || "";
+      for (const key of ["name", "email", "department", "mobile_number"]) form.elements[key].value = member[key] || "";
       form.elements.id.value = member.id;
       form.elements.password.value = "";
       form.elements.password.required = false;

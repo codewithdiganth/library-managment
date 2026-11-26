@@ -33,6 +33,7 @@ def init_db():
                 role TEXT NOT NULL CHECK(role IN ('admin', 'staff', 'student')),
                 member_code TEXT UNIQUE,
                 department TEXT DEFAULT '',
+                mobile_number TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 active INTEGER NOT NULL DEFAULT 1
             );
@@ -109,6 +110,10 @@ def init_db():
             );
             """
         )
+
+        user_columns = {row["name"] for row in db.execute("PRAGMA table_info(users)").fetchall()}
+        if "mobile_number" not in user_columns:
+            db.execute("ALTER TABLE users ADD COLUMN mobile_number TEXT NOT NULL DEFAULT ''")
 
         loan_columns = {row["name"] for row in db.execute("PRAGMA table_info(loans)").fetchall()}
         if "renewals" not in loan_columns:

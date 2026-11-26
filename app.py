@@ -255,6 +255,7 @@ def create_app():
         with closing(get_db()) as db:
             members = db.execute(
                 """SELECT u.id, u.name, u.email, u.role, u.member_code, u.department, u.active,
+                          u.mobile_number,
                           COUNT(l.id) AS loans_count,
                           SUM(CASE WHEN l.returned_at IS NULL THEN 1 ELSE 0 END) AS active_loans
                    FROM users u LEFT JOIN loans l ON l.user_id = u.id
@@ -286,14 +287,18 @@ def create_app():
         email = str(data.get("email", "")).strip().lower()
         password = str(data.get("password", ""))
         department = str(data.get("department", "")).strip()[:100]
+        mobile_number = str(data.get("mobile_number", "")).strip()
+        mobile_digits = re.sub(r"\D", "", mobile_number)
         if not name or len(name) > 120 or "@" not in email or len(email) > 200 or len(password) < 8:
             return jsonify(error="Enter a name, valid email and password of at least 8 characters."), 400
+        if len(mobile_number) > 24 or not 7 <= len(mobile_digits) <= 15 or re.search(r"[^+\d\s().-]", mobile_number):
+            return jsonify(error="Enter a valid mobile number with 7 to 15 digits."), 400
         code = f"STU-{secrets.token_hex(3).upper()}"
         try:
             with closing(get_db()) as db, db:
                 cursor = db.execute(
-                    "INSERT INTO users (name, email, password_hash, role, member_code, department) VALUES (?, ?, ?, 'student', ?, ?)",
-                    (name, email, generate_password_hash(password), code, department),
+                    "INSERT INTO users (name, email, password_hash, role, member_code, department, mobile_number) VALUES (?, ?, ?, 'student', ?, ?, ?)",
+                    (name, email, generate_password_hash(password), code, department, mobile_number),
                 )
                 member_id = cursor.lastrowid
         except sqlite3.IntegrityError:
@@ -305,7 +310,7 @@ def create_app():
     def update_member(member_id):
         data = request.get_json(silent=True) or {}
         updates = {}
-        for key in ("name", "email", "department"):
+        for key in ("name", "email", "department", "mobile_number"):
             if key in data:
                 updates[key] = str(data[key]).strip()
         if "active" in data:
@@ -325,6 +330,11 @@ def create_app():
             return jsonify(error="Name must be between 1 and 120 characters."), 400
         if "department" in updates:
             updates["department"] = updates["department"][:100]
+        if "mobile_number" in updates:
+            mobile = updates["mobile_number"]
+            mobile_digits = re.sub(r"\D", "", mobile)
+            if len(mobile) > 24 or not 7 <= len(mobile_digits) <= 15 or re.search(r"[^+\d\s().-]", mobile):
+                return jsonify(error="Enter a valid mobile number with 7 to 15 digits."), 400
         columns = ", ".join(f"{column} = ?" for column in updates)
         try:
             with closing(get_db()) as db, db:

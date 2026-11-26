@@ -136,11 +136,26 @@ class AuthenticationTests(unittest.TestCase):
         self.login("admin@northstar.edu", "admin123")
         response = self.client.post(
             "/api/members",
-            json={"name": "New Member", "email": "new.member@northstar.edu", "password": "longpass123", "department": "Physics"},
+            json={"name": "New Member", "email": "new.member@northstar.edu", "password": "longpass123",
+                  "department": "Physics", "mobile_number": "+1 (555) 123-4567"},
             headers={"X-CSRF-Token": self.current_csrf_token()},
         )
         self.assertEqual(response.status_code, 201)
         self.assertTrue(response.get_json()["member_code"].startswith("STU-"))
+        member = next(item for item in self.client.get("/api/members").get_json()["members"] if item["id"] == response.get_json()["id"])
+        self.assertEqual(member["mobile_number"], "+1 (555) 123-4567")
+
+    def test_member_mobile_number_is_required_and_validated(self):
+        self.login("admin@northstar.edu", "admin123")
+        headers = {"X-CSRF-Token": self.current_csrf_token()}
+        response = self.client.post(
+            "/api/members",
+            json={"name": "No Phone", "email": "no.phone@northstar.edu", "password": "longpass123",
+                  "mobile_number": "123"},
+            headers=headers,
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("mobile number", response.get_json()["error"])
 
     def test_staff_issue_return_and_qr(self):
         self.login("staff@northstar.edu", "staff123")
