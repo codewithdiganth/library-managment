@@ -42,7 +42,7 @@ SEED_DEMO_DATA=true
 AI_PROVIDER=openai
 OPENAI_API_KEY=
 ANTHROPIC_API_KEY=
-`
+'''
 
 ### 4. Run the Application
 ```bash
